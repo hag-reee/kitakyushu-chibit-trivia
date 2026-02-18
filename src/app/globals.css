@@ -1,0 +1,997 @@
+/* === CSS Custom Properties === */
+:root {
+  --color-bg: #000000;
+  --color-bg-secondary: #0a0a0a;
+  --color-bg-card: #111111;
+  --color-text: #e0e0e0;
+  --color-text-muted: #888888;
+  --color-text-dim: #555555;
+  --color-accent: #FF4800;
+  --color-accent-hover: #FF5A1A;
+  --color-accent-yellow: #FCEE21;
+  --color-error: #ff6b6b;
+  --color-success: #7bffb8;
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-border-focus: rgba(255, 255, 255, 0.25);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --font-sans: 'Zen Kaku Gothic New', sans-serif;
+  --font-en: 'Ysabeau Infant', sans-serif;
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+}
+
+/* === Reset & Base === */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.7;
+  width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
+  /* Disable horizontal swipe/scroll */
+  /* overflow-y is managed by modal state */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body.modal-open {
+  overflow: hidden !important;
+  position: fixed;
+  width: 100%;
+  left: 0;
+  right: 0;
+  height: 100dvh;
+}
+
+
+
+/* === Layout === */
+.app-container {
+  position: relative;
+  z-index: 1;
+  max-width: 375px;
+  margin: 0 auto;
+  padding: 0 20px 40px;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* === Header === */
+.header {
+  text-align: center;
+  padding: 60px 0 0;
+  position: relative;
+}
+
+.header__logo-wrapper {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 20px;
+}
+
+.header__glow {
+  position: absolute;
+  top: 67%;
+  left: 62%;
+  transform: translate(-70px, -88px);
+  width: 150px;
+  height: 150px;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 1;
+  animation: lightFlicker 7s ease-in-out infinite;
+}
+
+.header__logo {
+  position: relative;
+  z-index: 1;
+  width: 180px;
+  height: auto;
+}
+
+.header__subtitle {
+  font-size: 15px;
+  color: #FFFFFF;
+  margin-top: 4px;
+  line-height: 1.8;
+  letter-spacing: 0.12em;
+  font-weight: 500;
+}
+
+/* === Input Area === */
+.input-area {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.input-field {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  font-size: 0.9rem;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.input-field::placeholder {
+  color: var(--color-text-dim);
+  font-size: 0.85rem;
+}
+
+.input-field:focus {
+  border-color: var(--color-border-focus);
+}
+
+/* === Buttons === */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--color-accent);
+  color: #ffffff;
+  padding: 16px 24px;
+  width: 100%;
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  margin-bottom: 30px;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-primary .btn-emoji {
+  font-size: 1rem;
+}
+
+.btn-secondary {
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  padding: 10px 16px;
+  font-size: 0.82rem;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--color-border-focus);
+  background: #1a1a1a;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-text-dim);
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  color: var(--color-text-muted);
+}
+
+/* === Error Message === */
+.error-message {
+  margin-top: 8px;
+  padding: 12px 16px;
+  background: rgba(255, 107, 107, 0.08);
+  border: 1px solid rgba(255, 107, 107, 0.15);
+  border-radius: var(--radius-sm);
+  color: var(--color-error);
+  font-size: 0.82rem;
+  animation: fadeSlideIn 0.3s ease;
+}
+
+/* === Loading === */
+.loading-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin-top: 36px;
+  padding: 32px;
+  animation: fadeIn 0.3s ease;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 2.5px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.loading-text {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+/* === Trivia Card === */
+.trivia-card {
+  margin-top: 28px;
+  margin-left: -20px;
+  margin-right: -20px;
+  padding: 0;
+  position: relative;
+  animation: cardAppear 0.5s ease;
+  overflow: visible;
+  padding-bottom: 60px;
+  width: 405px;
+  min-height: 550px;
+}
+
+/* Close button */
+.trivia-close-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin: 22px 6px 0 0;
+  padding: 0;
+  opacity: 0;
+  animation: bounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.6s forwards;
+}
+
+.trivia-close-btn:hover {
+  opacity: 1;
+}
+
+.trivia-close-btn img {
+  width: 170px;
+  height: 50px;
+}
+
+.trivia-close-btn span {
+  font-size: 11px;
+  font-family: var(--font-en);
+  color: var(--color-accent-yellow);
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+/* Yellow blob background */
+.trivia-blob-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 88%;
+  pointer-events: none;
+  z-index: 0;
+  animation: blobBounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.trivia-blob {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Content area */
+.trivia-content {
+  position: relative;
+  z-index: 1;
+  padding: 90px 60px 60px 36px;
+  max-width: 82%;
+  opacity: 0;
+  animation: textFadeIn 0.8s ease 0.3s forwards;
+}
+
+.trivia-keyword {
+  font-size: 20px;
+  line-height: 29px;
+  color: #000000;
+  font-weight: 700;
+  margin: 0;
+}
+
+.trivia-text {
+  font-size: 14px;
+  line-height: 30px;
+  color: #716A00;
+  margin-top: 20px;
+}
+
+/* === Action Buttons === */
+.action-buttons {
+  position: absolute;
+  top: 435px;
+  bottom: 70px;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 25px;
+  padding: 0px 40px 0px 10px;
+}
+
+/* Curved layout following blob bottom edge */
+.action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: transform var(--transition-fast), opacity var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* もう1回 (1st child) → rightmost, highest position */
+.action-btn:nth-child(1) {
+  order: 3;
+  margin-bottom: 80px;
+  opacity: 0;
+  animation: bounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s forwards;
+}
+
+/* コピー (2nd child) → center, middle position */
+.action-btn:nth-child(2) {
+  order: 2;
+  margin-bottom: 8px;
+  margin-left: 15px;
+  opacity: 0;
+  animation: bounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.65s forwards;
+}
+
+/* シェア (3rd child) → leftmost, lowest position */
+.action-btn:nth-child(3) {
+  order: 1;
+  margin-bottom: 0;
+  opacity: 0;
+  animation: bounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.8s forwards;
+}
+
+.action-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.action-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-btn img {
+  width: 90px;
+  height: 90px;
+}
+
+/* === History Section === */
+.history-section {
+  padding-top: 30px;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 6px;
+}
+
+.history-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.history-note {
+  font-size: 12px;
+  color: var(--color-text-dim);
+  margin-bottom: 14px;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.history-item:hover {
+  opacity: 0.8;
+}
+
+.history-item__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.history-item__denkyu {
+  width: 8px;
+  height: auto;
+  flex-shrink: 0;
+}
+
+.history-item__keyword {
+  font-size: 0.88rem;
+  font-weight: 400;
+  color: #FFFFFF;
+}
+
+.history-item__arrow {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--color-text-dim);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.history-item__arrow svg {
+  width: 8px;
+  height: 8px;
+  fill: none;
+  stroke: var(--color-text-dim);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* === Toast === */
+.toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: #1a1a1a;
+  color: var(--color-success);
+  border: 1px solid rgba(123, 255, 184, 0.15);
+  padding: 10px 24px;
+  border-radius: var(--radius-md);
+  font-size: 0.82rem;
+  font-weight: 500;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: all var(--transition-normal);
+  z-index: 1000;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+
+
+
+
+/* === Footer === */
+.footer {
+  margin-top: auto;
+  padding-top: 48px;
+  padding-bottom: 16px;
+  text-align: center;
+}
+
+.footer__note {
+  font-size: 0.7rem;
+  color: var(--color-text-dim);
+  margin-bottom: 8px;
+}
+
+.footer__text {
+  font-size: 0.65rem;
+  color: var(--color-text-dim);
+  letter-spacing: 0.05em;
+  font-family: var(--font-en);
+  font-optical-sizing: auto;
+  font-weight: 400;
+}
+
+/* === Modal === */
+
+/* Backdrop - covers full screen regardless of parent padding */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+  background: rgba(0, 0, 0, 0.45) !important;
+  border-radius: 0 !important;
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  overflow-y: auto;
+  /* Enable scroll if content is tall */
+  overflow-x: hidden;
+  background: transparent;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  /* Use flex-start + margin:auto for scroll safety */
+}
+
+.modal-content {
+  position: relative;
+  width: 100%;
+  max-width: 405px;
+  /* Remove fixed 100dvh to allow scrolling taller content */
+  min-height: 660px;
+  /* Ensure enough height for button (624px + margin) */
+  margin: auto;
+  /* Vertically center if space allows */
+  border: 0;
+  padding: 0;
+  overflow: visible;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+/* Noise overlay - covers full screen */
+.modal-noise {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background-image: url('../../asset/noise.png');
+  background-repeat: repeat;
+  background-size: auto;
+  pointer-events: none;
+  opacity: 0.35;
+}
+
+/* Trivia Logo (Result Card) */
+.trivia-logo {
+  position: absolute;
+  top: -50px;
+  left: 50%;
+  margin-left: -55px;
+  z-index: 20;
+  pointer-events: none;
+  opacity: 0;
+  animation: bounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s forwards;
+}
+
+.trivia-logo img {
+  width: 270px;
+  height: auto;
+  animation: logoSpin 8s linear infinite;
+}
+
+/* Logo top-right */
+.modal-logo {
+  /* width: 270px; center align */
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  margin-left: -55px;
+  right: auto;
+  z-index: 1;
+  opacity: 0;
+  animation: bounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s forwards;
+}
+
+.modal-logo img {
+  width: 270px;
+  height: auto;
+  animation: logoSpin 8s linear infinite;
+}
+
+@keyframes logoSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* === Modal Grouping === */
+/* Group wrapper containing Blob, Text, and Buttons */
+.modal-blob-group {
+  position: absolute;
+  top: 160px;
+  left: 50%;
+  margin-left: -207.5px;
+  /* Matches old blob position */
+  width: 365px;
+  height: 464px;
+  /* Matches image height roughly */
+  z-index: 2;
+  /* overflow: visible to allow text/buttons to extend */
+}
+
+/* Blob wrapper - now fits inside group */
+.modal-blob-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  animation: blobBounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.modal-blob-wrapper img {
+  width: 100%;
+  height: auto;
+}
+
+/* Text content - positioned relative to group */
+.modal-text-content {
+  position: absolute;
+  top: 100px;
+  /* Relative to top 160px (260-160=100) */
+  left: 20px;
+  /* Relative offset (Text Center vs Blob Center diff) */
+  width: 375px;
+  z-index: 3;
+  padding: 0 80px 0 30px;
+  opacity: 0;
+  animation: textFadeIn 0.8s ease 0.3s forwards;
+  /* pointer-events: none removed to allow text selection */
+}
+
+.modal-keyword {
+  font-size: 20px;
+  font-weight: 700;
+  color: #000;
+  line-height: 29px;
+  margin: 0 0 20px 0;
+}
+
+.modal-trivia {
+  font-size: 14px;
+  color: #716A00;
+  line-height: 30px;
+  margin: 0;
+}
+
+/* Action buttons - relative to group (Yellow Circle) */
+/* Action buttons - relative to group (Yellow Circle) */
+/* Action buttons - relative to group (Yellow Circle) */
+.modal-action-buttons {
+  position: absolute;
+  inset: 0;
+  /* Cover the whole group area */
+  z-index: 4;
+  pointer-events: none;
+  /* Let clicks pass through except on buttons */
+}
+
+.modal-action-buttons .action-btn-wrapper {
+  position: absolute;
+  width: 90px;
+  height: 90px;
+  pointer-events: auto;
+  /* Enable clicking on buttons */
+}
+
+.modal-action-buttons .action-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+/* Close Wrapper (Child 1) - Base Position (Right-Bottom) */
+.modal-action-buttons .action-btn-wrapper:nth-child(1) {
+  right: 0;
+  bottom: -30px;
+  transform: translate(10px, -110px);
+  /* User specified adjustment */
+  z-index: 30;
+}
+
+/* Copy Wrapper (Child 2) - Shifted Left & Down (Fan Shape) */
+.modal-action-buttons .action-btn-wrapper:nth-child(2) {
+  right: 90px;
+  bottom: -70px;
+  transform: translate(0px, -60px);
+  /* User specified adjustment */
+  z-index: 20;
+}
+
+/* Share Wrapper (Child 3) - Shifted More Left & Down (Fan Shape) */
+.modal-action-buttons .action-btn-wrapper:nth-child(3) {
+  right: 180px;
+  bottom: -110px;
+  transform: translate(-40px, -70px);
+  /* User specified adjustment */
+  z-index: 10;
+}
+
+/* Animations on internal buttons */
+.modal-action-buttons .action-btn-wrapper:nth-child(1) .action-btn {
+  opacity: 0;
+  animation: bounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s forwards;
+}
+
+.modal-action-buttons .action-btn-wrapper:nth-child(2) .action-btn {
+  opacity: 0;
+  animation: bounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.65s forwards;
+}
+
+.modal-action-buttons .action-btn-wrapper:nth-child(3) .action-btn {
+  opacity: 0;
+  animation: bounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.8s forwards;
+}
+
+.modal-action-buttons .action-btn img {
+  width: 90px;
+  height: 90px;
+  /* Fix for rough edges/aliasing */
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Close bottom button - fixed at bottom, centered */
+.modal-close-bottom {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  margin-left: -187.5px;
+  transform: none;
+  /* remove translateX(-50%) as we use margin layout */
+  width: 375px;
+  right: auto;
+  display: flex;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+  animation: bounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.9s forwards;
+  transition: opacity 0.2s ease;
+}
+
+.modal-close-bottom:hover {
+  opacity: 0.8;
+}
+
+/* === Animations === */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cardAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Light flicker - irregular opacity pulsing */
+@keyframes lightFlicker {
+  0% {
+    opacity: 1;
+  }
+
+  8% {
+    opacity: 0.4;
+  }
+
+  12% {
+    opacity: 0.9;
+  }
+
+  20% {
+    opacity: 0.6;
+  }
+
+  25% {
+    opacity: 1;
+  }
+
+  35% {
+    opacity: 0.85;
+  }
+
+  42% {
+    opacity: 0.3;
+  }
+
+  46% {
+    opacity: 0.8;
+  }
+
+  55% {
+    opacity: 1;
+  }
+
+  65% {
+    opacity: 0.5;
+  }
+
+  70% {
+    opacity: 0.95;
+  }
+
+  78% {
+    opacity: 0.35;
+  }
+
+  82% {
+    opacity: 0.75;
+  }
+
+  90% {
+    opacity: 1;
+  }
+
+  95% {
+    opacity: 0.6;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Blob bounce in */
+@keyframes blobBounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+
+  70% {
+    transform: scale(0.96);
+  }
+
+  85% {
+    transform: scale(1.03);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Bounce in for buttons & close */
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+
+  70% {
+    transform: scale(0.92);
+  }
+
+  85% {
+    transform: scale(1.05);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Text fade in */
+@keyframes textFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
