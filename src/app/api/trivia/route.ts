@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logKeyword } from "@/lib/redis";
 
 // --- Rate Limiting (in-memory, IP-based) ---
 const RATE_LIMIT_PER_MINUTE = 10;
@@ -325,6 +326,11 @@ export async function POST(req: Request) {
                 { status: 500 }
             );
         }
+
+        // Log keyword to Redis (fire-and-forget, non-blocking)
+        logKeyword(keyword).catch((err) =>
+            console.error("[Redis] logKeyword failed:", err)
+        );
 
         return NextResponse.json({
             trivia: generatedTrivia,
