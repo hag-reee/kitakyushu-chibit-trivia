@@ -68,6 +68,7 @@ body.modal-open {
 .app-container {
   position: relative;
   z-index: 1;
+  width: 100%;
   max-width: 375px;
   margin: 0 auto;
   padding: 0 20px 40px;
