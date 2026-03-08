@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import "./admin.css";
 
 interface RankedKeyword {
     keyword: string;
@@ -24,51 +23,22 @@ interface StatsData {
 
 type Period = "all" | "7days" | "today";
 
-export default function AdminPage() {
-    const [authenticated, setAuthenticated] = useState(false);
-    const [password, setPassword] = useState("");
-    const [loginError, setLoginError] = useState("");
-    const [loading, setLoading] = useState(false);
-
+export default function AdminDashboard() {
     const [stats, setStats] = useState<StatsData | null>(null);
     const [period, setPeriod] = useState<Period>("all");
     const [genre, setGenre] = useState<string>("");
     const [statsLoading, setStatsLoading] = useState(false);
 
-    // --- Login ---
-    const handleLogin = async () => {
-        setLoginError("");
-        setLoading(true);
-        try {
-            const res = await fetch("/api/admin/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ password }),
-            });
-            if (res.ok) {
-                setAuthenticated(true);
-            } else {
-                setLoginError("パスワードが違います");
-            }
-        } catch {
-            setLoginError("接続エラーが発生しました");
-        }
-        setLoading(false);
-    };
-
-    // --- Fetch stats ---
     const fetchStats = useCallback(async () => {
         setStatsLoading(true);
         try {
             const params = new URLSearchParams({ period });
             if (genre) params.set("genre", genre);
             const res = await fetch(`/api/admin/stats?${params}`);
-            if (res.status === 401) {
-                setAuthenticated(false);
-                return;
+            if (res.ok) {
+                const data = await res.json();
+                setStats(data);
             }
-            const data = await res.json();
-            setStats(data);
         } catch (err) {
             console.error("Failed to fetch stats:", err);
         }
@@ -76,41 +46,9 @@ export default function AdminPage() {
     }, [period, genre]);
 
     useEffect(() => {
-        if (authenticated) fetchStats();
-    }, [authenticated, fetchStats]);
+        fetchStats();
+    }, [fetchStats]);
 
-    // --- Login Screen ---
-    if (!authenticated) {
-        return (
-            <div className="admin-login">
-                <div className="admin-login-card">
-                    <h1 className="admin-login-title">管理者ログイン</h1>
-                    <p className="admin-login-subtitle">北九州ちびっとトリビア</p>
-                    <div className="admin-login-form">
-                        <input
-                            type="password"
-                            className="admin-input"
-                            placeholder="パスワード"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                            autoFocus
-                        />
-                        <button
-                            className="admin-btn-primary"
-                            onClick={handleLogin}
-                            disabled={loading || !password}
-                        >
-                            {loading ? "認証中..." : "ログイン"}
-                        </button>
-                    </div>
-                    {loginError && <p className="admin-error">{loginError}</p>}
-                </div>
-            </div>
-        );
-    }
-
-    // --- Dashboard ---
     const maxCount =
         stats?.ranking && stats.ranking.length > 0
             ? Math.max(...stats.ranking.map((r) => r.count))
@@ -127,11 +65,10 @@ export default function AdminPage() {
     };
 
     return (
-        <div className="admin-container">
-            {/* Header */}
+        <div className="admin-page">
             <header className="admin-header">
                 <h1 className="admin-title">📊 キーワード分析</h1>
-                <p className="admin-subtitle">北九州ちびっとトリビア 管理者ダッシュボード</p>
+                <p className="admin-subtitle">ダッシュボード</p>
             </header>
 
             {/* Period Tabs */}
@@ -157,9 +94,7 @@ export default function AdminPage() {
                 >
                     <option value="">すべて</option>
                     {stats?.genres.map((g) => (
-                        <option key={g} value={g}>
-                            {g}
-                        </option>
+                        <option key={g} value={g}>{g}</option>
                     ))}
                 </select>
             </div>
@@ -196,9 +131,7 @@ export default function AdminPage() {
                         ))}
                     </div>
                 ) : (
-                    !statsLoading && (
-                        <p className="admin-empty">データがありません</p>
-                    )
+                    !statsLoading && <p className="admin-empty">データがありません</p>
                 )}
             </section>
 
@@ -221,16 +154,12 @@ export default function AdminPage() {
                                         )}
                                     </div>
                                 </div>
-                                <span className="admin-chart-label">
-                                    {point.date.slice(5)}
-                                </span>
+                                <span className="admin-chart-label">{point.date.slice(5)}</span>
                             </div>
                         ))}
                     </div>
                 ) : (
-                    !statsLoading && (
-                        <p className="admin-empty">データがありません</p>
-                    )
+                    !statsLoading && <p className="admin-empty">データがありません</p>
                 )}
             </section>
         </div>

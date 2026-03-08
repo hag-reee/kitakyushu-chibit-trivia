@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { logKeyword } from "@/lib/redis";
+import { findFixedAnswer } from "@/lib/fixed-answers";
+import { searchSources, buildContextFromSearchResults, hasEnoughEvidence } from "@/lib/search";
+import { createTriviaLog } from "@/lib/trivia-logs";
 
 // --- Rate Limiting (in-memory, IP-based) ---
 const RATE_LIMIT_PER_MINUTE = 10;
@@ -36,10 +39,8 @@ setInterval(() => {
 // --- Gemini API ---
 const API_KEY_RAW = process.env.GEMINI_API_KEY;
 
-const SYSTEM_PROMPT = `あなたは「北九州に必ず紐づける短文トリビア」作家です。
-入力された単語を起点に、北九州の文化・地理・産業・歴史・食・観光・企業について多角的に調べ、いずれかへ強引に結びつけて、日本語で1段落のトリビアを作ってください。
-入力語が多義語・固有名詞か不明な場合は、北九州市に最も関連が強い解釈を1つだけ選び、その解釈に基づいてトリビアを作ってください。
-数値（年・人数・面積等）を入れる場合は特に慎重に。自信がなければ数値は出さず定性的に。
+const BASE_SYSTEM_PROMPT = `あなたは「北九州に必ず紐づける短文トリビア」作家です。
+入力された単語を起点に、北九州の文化・地理・産業・歴史・食・観光・企業のいずれかへ強引に結びつけて、日本語で1段落のトリビアを作ってください。
 
 【絶対条件】
 ・70文字以上100文字以内（厳守。句読点含む）
@@ -52,10 +53,28 @@ const SYSTEM_PROMPT = `あなたは「北九州に必ず紐づける短文トリ
 【出力例】
 入力「カレー」→「カレーの隠し味に醤油を入れる家庭は多いが、北九州の小倉では焼きうどん発祥の地として知られ、うどん出汁にカレーを合わせた一杯が地元民に密かに愛されているらしい。」`;
 
+const RAG_SYSTEM_PROMPT_SUFFIX = `
+
+【内部ソース参照ルール】
+・以下に提供される「参照ソース情報」を最優先の根拠として使用すること
+・北九州市に明確に関連する内容のみ採用すること
+・推測は禁止
+・数値や年号は確度が高い場合のみ使用
+・根拠が弱い場合は無理に生成しない`;
+
 function buildUserPrompt(keyword: string): string {
     return `単語：「${keyword}」
 
 上記の単語から北九州に紐づくトリビアを1つ書いてください。
+必ず70〜100文字で、文末は「。」で完結させてください。途中で切らないでください。`;
+}
+
+function buildUserPromptWithContext(keyword: string, context: string): string {
+    return `${context}
+
+単語：「${keyword}」
+
+上記の参照ソース情報を根拠として最優先で使用し、北九州に紐づくトリビアを1つ書いてください。
 必ず70〜100文字で、文末は「。」で完結させてください。途中で切らないでください。`;
 }
 
@@ -86,7 +105,6 @@ function extractText(data: Record<string, unknown>): string | null {
         const parts = content?.parts as Array<Record<string, unknown>> | undefined;
         if (!parts || parts.length === 0) return null;
 
-        // Collect all non-thought text parts
         const textParts: string[] = [];
         for (const part of parts) {
             if (part.thought === true) continue;
@@ -113,12 +131,9 @@ function getFinishReason(data: Record<string, unknown>): string {
 }
 
 // --- Model-specific config ---
-// gemini-2.5-flash is a "thinking" model that uses tokens for internal reasoning.
-// We need to either give it a huge maxOutputTokens or disable thinking.
 interface ModelConfig {
     name: string;
     maxOutputTokens: number;
-    // Optional: thinkingConfig to control thinking budget
     thinkingConfig?: { thinkingBudget: number };
 }
 
@@ -129,11 +144,11 @@ const MODEL_CONFIGS: ModelConfig[] = [
     },
     {
         name: "gemini-2.5-flash",
-        maxOutputTokens: 8192, // Needs to be very large because thinking tokens count against this
-        thinkingConfig: { thinkingBudget: 0 }, // Disable thinking to save tokens for actual output
+        maxOutputTokens: 8192,
+        thinkingConfig: { thinkingBudget: 0 },
     },
     {
-        name: "gemini-2.0-flash-lite", // gemini-1.5-flash is retired; use lite variant as fallback
+        name: "gemini-2.0-flash-lite",
         maxOutputTokens: 500,
     },
 ];
@@ -141,17 +156,16 @@ const MODEL_CONFIGS: ModelConfig[] = [
 async function callGemini(
     modelConfig: ModelConfig,
     apiKey: string,
-    messages: { role: string; parts: { text: string }[] }[]
+    messages: { role: string; parts: { text: string }[] }[],
+    systemPrompt: string
 ): Promise<{ text: string | null; finishReason: string; rawData: Record<string, unknown> | null }> {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelConfig.name}:generateContent?key=${apiKey}`;
 
-    // Build generation config
     const generationConfig: Record<string, unknown> = {
         temperature: 0.7,
         maxOutputTokens: modelConfig.maxOutputTokens,
     };
 
-    // Add thinkingConfig if specified (for gemini-2.5-flash)
     if (modelConfig.thinkingConfig) {
         generationConfig.thinkingConfig = modelConfig.thinkingConfig;
     }
@@ -161,7 +175,7 @@ async function callGemini(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             systemInstruction: {
-                parts: [{ text: SYSTEM_PROMPT }],
+                parts: [{ text: systemPrompt }],
             },
             contents: messages,
             generationConfig,
@@ -183,6 +197,12 @@ async function callGemini(
 
     return { text, finishReason, rawData: data };
 }
+
+// --- Fallback messages ---
+const FALLBACK_MESSAGES = [
+    "この単語に関する北九州トリビアは現在準備中です。",
+    "北九州との明確な関連情報がまだ見つかっていません。",
+];
 
 export async function POST(req: Request) {
     const API_KEY = API_KEY_RAW ? API_KEY_RAW.trim() : "";
@@ -224,13 +244,76 @@ export async function POST(req: Request) {
             );
         }
 
+        // ===== Step 1: 固定回答検索 =====
+        try {
+            const fixedAnswer = await findFixedAnswer(keyword);
+            if (fixedAnswer) {
+                // 固定回答が見つかった → 即返却
+                logKeyword(keyword).catch(() => { });
+
+                // ログ保存
+                createTriviaLog({
+                    input_word: keyword,
+                    matched_fixed_answer_id: fixedAnswer.id,
+                    generated_text: fixedAnswer.answer_text,
+                    referenced_source_ids: [],
+                    referenced_note_ids: [],
+                    model_name: "",
+                    status: "fixed_answer",
+                    fallback_reason: "",
+                }).catch((err) => console.error("[TriviaLog] Failed:", err));
+
+                return NextResponse.json({
+                    trivia: fixedAnswer.answer_text,
+                    keyword,
+                    mode: "fixed_answer",
+                    retries: 0,
+                    model: "fixed_answer",
+                    createdAt: new Date().toISOString(),
+                });
+            }
+        } catch (err) {
+            console.error("[Fixed Answer] Search failed:", err);
+            // Continue to normal generation
+        }
+
+        // ===== Step 2: 内部ソース検索 =====
+        let sourceContext = "";
+        let referencedSourceIds: string[] = [];
+        let referencedNoteIds: string[] = [];
+        let hasEvidence = false;
+
+        try {
+            const searchResults = await searchSources(keyword, 5);
+            if (searchResults.length > 0) {
+                sourceContext = buildContextFromSearchResults(searchResults);
+                referencedSourceIds = searchResults.map(r => r.source.id);
+                referencedNoteIds = [...new Set(searchResults.flatMap(r => r.matchedNoteIds))];
+                hasEvidence = hasEnoughEvidence(searchResults);
+            }
+        } catch (err) {
+            console.error("[Source Search] Failed:", err);
+            // Continue without sources
+        }
+
+        // ===== Step 3: フォールバック判定 =====
+        // ソース検索でヒットしたが根拠が十分でない場合もAI生成は試みる
+        // （完全に根拠不足の場合のみフォールバックはAI生成後に判定）
+
+        // ===== Step 4: AI生成 =====
+        const systemPrompt = sourceContext
+            ? BASE_SYSTEM_PROMPT + RAG_SYSTEM_PROMPT_SUFFIX
+            : BASE_SYSTEM_PROMPT;
+
+        const userPrompt = sourceContext
+            ? buildUserPromptWithContext(keyword, sourceContext)
+            : buildUserPrompt(keyword);
+
         let lastError: Error | null = null;
         let generatedTrivia: string | null = null;
         let bestCandidate: string | null = null;
         let retries = 0;
         let usedModel = "";
-
-        const userPrompt = buildUserPrompt(keyword);
 
         outerLoop:
         for (const modelConfig of MODEL_CONFIGS) {
@@ -240,7 +323,7 @@ export async function POST(req: Request) {
                 ];
 
                 // First attempt
-                const result = await callGemini(modelConfig, API_KEY, messages);
+                const result = await callGemini(modelConfig, API_KEY, messages, systemPrompt);
 
                 if (!result.text) {
                     if (result.finishReason === "NOT_FOUND") {
@@ -253,7 +336,6 @@ export async function POST(req: Request) {
                 let candidate = result.text;
                 console.log(`Model ${modelConfig.name}: first attempt = "${candidate}" (${candidate.length} chars, finishReason=${result.finishReason})`);
 
-                // If response was truncated (MAX_TOKENS), skip to next model
                 if (result.finishReason === "MAX_TOKENS") {
                     console.warn(`Model ${modelConfig.name}: truncated (MAX_TOKENS), skipping.`);
                     if (!bestCandidate || candidate.length > bestCandidate.length) {
@@ -262,7 +344,6 @@ export async function POST(req: Request) {
                     throw new Error(`レスポンスが途中で切れました (MAX_TOKENS)。`);
                 }
 
-                // Track best candidate
                 if (!bestCandidate || candidate.length > bestCandidate.length) {
                     bestCandidate = candidate;
                 }
@@ -277,7 +358,7 @@ export async function POST(req: Request) {
                         { role: "user", parts: [{ text: retryPrompt }] }
                     );
 
-                    const retryResult = await callGemini(modelConfig, API_KEY, messages);
+                    const retryResult = await callGemini(modelConfig, API_KEY, messages, systemPrompt);
 
                     if (!retryResult.text || retryResult.finishReason === "MAX_TOKENS") {
                         break;
@@ -291,14 +372,12 @@ export async function POST(req: Request) {
                     }
                 }
 
-                // Accept if valid length
                 if (isValidLength(candidate)) {
                     generatedTrivia = candidate;
                     usedModel = modelConfig.name;
                     break outerLoop;
                 }
 
-                // Not valid, try next model
                 console.warn(`Model ${modelConfig.name}: final text out of range (${candidate.length} chars).`);
                 throw new Error(`文字数が範囲外です（${candidate.length}文字）。`);
 
@@ -308,14 +387,29 @@ export async function POST(req: Request) {
             }
         }
 
-        // Fallback: use best candidate if available (even if out of range)
+        // Fallback: use best candidate if available
         if (!generatedTrivia && bestCandidate && bestCandidate.length >= 10) {
             console.warn(`Using best candidate as fallback (${bestCandidate.length} chars).`);
             generatedTrivia = bestCandidate;
             usedModel = "fallback";
         }
 
+        // ===== Step 5: フォールバック処理 =====
         if (!generatedTrivia) {
+            const fallbackText = FALLBACK_MESSAGES[Math.floor(Math.random() * FALLBACK_MESSAGES.length)];
+
+            // ログ保存
+            createTriviaLog({
+                input_word: keyword,
+                matched_fixed_answer_id: "",
+                generated_text: fallbackText,
+                referenced_source_ids: referencedSourceIds,
+                referenced_note_ids: referencedNoteIds,
+                model_name: usedModel,
+                status: "fallback_no_source",
+                fallback_reason: lastError?.message || "生成失敗",
+            }).catch((err) => console.error("[TriviaLog] Failed:", err));
+
             console.error("All models failed. Last error:", lastError);
             return NextResponse.json(
                 {
@@ -329,15 +423,26 @@ export async function POST(req: Request) {
             );
         }
 
-        // Log keyword to Redis (fire-and-forget, non-blocking)
+        // ===== Step 6: ログ保存 =====
         logKeyword(keyword).catch((err) =>
             console.error("[Redis] logKeyword failed:", err)
         );
 
+        createTriviaLog({
+            input_word: keyword,
+            matched_fixed_answer_id: "",
+            generated_text: generatedTrivia,
+            referenced_source_ids: referencedSourceIds,
+            referenced_note_ids: referencedNoteIds,
+            model_name: usedModel,
+            status: hasEvidence ? "success" : "success",
+            fallback_reason: "",
+        }).catch((err) => console.error("[TriviaLog] Failed:", err));
+
         return NextResponse.json({
             trivia: generatedTrivia,
             keyword,
-            mode: "kitakyushu",
+            mode: sourceContext ? "rag" : "kitakyushu",
             retries,
             model: usedModel,
             createdAt: new Date().toISOString(),
@@ -351,6 +456,3 @@ export async function POST(req: Request) {
         );
     }
 }
-
-
-
