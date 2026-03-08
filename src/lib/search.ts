@@ -18,17 +18,17 @@ interface SearchResult {
  * 3. 中信頼ソース
  * 4. 低信頼ソース
  */
-export async function searchSources(keyword: string, maxResults = 5): Promise<SearchResult[]> {
+export async function searchSources(keyword: string, maxResults = 5): Promise<{ results: SearchResult[], matchedNotes: import("./types").Note[] }> {
     const normalized = keyword.trim().toLowerCase();
-    if (!normalized) return [];
+    if (!normalized) return { results: [], matchedNotes: [] };
 
     // 1. 公開ソース一覧を取得
     const { sources } = await listSources({ status: "published", limit: 500 });
-    if (sources.length === 0) return [];
+    if (sources.length === 0) return { results: [], matchedNotes: [] };
 
     // 2. ノート一覧を取得してキーワードマッチ
     const notes = await listNotes();
-    const matchedNoteIds: string[] = [];
+    const matchedNotes: import("./types").Note[] = [];
     const noteSourceIds = new Set<string>();
 
     for (const note of notes) {
@@ -36,7 +36,7 @@ export async function searchSources(keyword: string, maxResults = 5): Promise<Se
         const titleMatch = note.title.toLowerCase().includes(normalized);
         const kwMatch = note.keyword_tags.some(t => t.toLowerCase().includes(normalized) || normalized.includes(t.toLowerCase()));
         if (titleMatch || kwMatch) {
-            matchedNoteIds.push(note.id);
+            matchedNotes.push(note);
             const sids = await getSourceIdsForNote(note.id);
             sids.forEach(id => noteSourceIds.add(id));
         }
@@ -102,9 +102,9 @@ export async function searchSources(keyword: string, maxResults = 5): Promise<Se
                 source,
                 chunks: selectedChunks,
                 score,
-                matchedNoteIds: matchedNoteIds.filter(nid =>
-                    source.note_ids.includes(nid) || noteSourceIds.has(source.id)
-                ),
+                matchedNoteIds: matchedNotes.filter(n =>
+                    source.note_ids?.includes(n.id) || noteSourceIds.has(source.id)
+                ).map(n => n.id),
             });
         }
     }
@@ -118,21 +118,32 @@ export async function searchSources(keyword: string, maxResults = 5): Promise<Se
         incrementSourceUsage(result.source.id).catch(() => { });
     }
 
-    return topResults;
+    return { results: topResults, matchedNotes };
 }
 
 /**
  * 検索結果からAIプロンプト用のコンテキストを生成する
  */
-export function buildContextFromSearchResults(results: SearchResult[]): string {
-    if (results.length === 0) return "";
+export function buildContextFromSearchResults(results: SearchResult[], notes: import("./types").Note[] = []): string {
+    if (results.length === 0 && notes.length === 0) return "";
 
-    const parts: string[] = ["【参照ソース情報】"];
+    const parts: string[] = ["【参照情報】"];
 
-    for (const result of results) {
-        parts.push(`\n--- ソース: ${result.source.title} (信頼度: ${result.source.trust_level}, 種別: ${result.source.source_type}) ---`);
-        for (const chunk of result.chunks) {
-            parts.push(chunk.chunk_text);
+    // ノートのAI要約を最上位のコンテキストとして追加
+    const validNotes = notes.filter(n => n.description && n.description.trim().length > 0);
+    if (validNotes.length > 0) {
+        parts.push(`\n--- 【重要テーマ解説】 ---`);
+        for (const note of validNotes) {
+            parts.push(`■ ${note.title}\n${note.description}`);
+        }
+    }
+
+    if (results.length > 0) {
+        for (const result of results) {
+            parts.push(`\n--- 個別ソース: ${result.source.title} (信頼度: ${result.source.trust_level}, 種別: ${result.source.source_type}) ---`);
+            for (const chunk of result.chunks) {
+                parts.push(chunk.chunk_text);
+            }
         }
     }
 

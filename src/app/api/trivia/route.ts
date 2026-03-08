@@ -284,12 +284,16 @@ export async function POST(req: Request) {
         let hasEvidence = false;
 
         try {
-            const searchResults = await searchSources(keyword, 5);
-            if (searchResults.length > 0) {
-                sourceContext = buildContextFromSearchResults(searchResults);
+            const { results: searchResults, matchedNotes } = await searchSources(keyword, 5);
+            if (searchResults.length > 0 || matchedNotes.length > 0) {
+                sourceContext = buildContextFromSearchResults(searchResults, matchedNotes);
                 referencedSourceIds = searchResults.map(r => r.source.id);
-                referencedNoteIds = [...new Set(searchResults.flatMap(r => r.matchedNoteIds))];
-                hasEvidence = hasEnoughEvidence(searchResults);
+                // ノートIDは、紐付いたソースがなくてもマッチしたノートなら全て入れる
+                referencedNoteIds = [...new Set([
+                    ...searchResults.flatMap(r => r.matchedNoteIds),
+                    ...matchedNotes.map(n => n.id)
+                ])];
+                hasEvidence = hasEnoughEvidence(searchResults) || matchedNotes.some(n => n.description && n.description.length > 0);
             }
         } catch (err) {
             console.error("[Source Search] Failed:", err);

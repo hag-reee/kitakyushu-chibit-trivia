@@ -23,7 +23,14 @@ export async function GET(
 
         const sourceIds = await getSourceIdsForNote(id);
 
-        return NextResponse.json({ note, sourceIds });
+        // Fetch source objects
+        const { getSource } = await import("@/lib/sources");
+        const sources = await Promise.all(
+            sourceIds.map(async (sourceId) => await getSource(sourceId))
+        );
+        const validSources = sources.filter(Boolean);
+
+        return NextResponse.json({ note, sources: validSources });
     } catch (err) {
         console.error("[Note Detail API] Error:", err);
         return NextResponse.json({ error: "Failed to get note" }, { status: 500 });
@@ -51,12 +58,13 @@ export async function PUT(
             await removeSourceFromNote(id, body.remove_source_id);
         }
 
-        const updated = await updateNote(id, {
-            title: body.title,
-            description: body.description,
-            keyword_tags: body.keyword_tags,
-            status: body.status,
-        });
+        const updateData: Partial<typeof body> = {};
+        if (body.title !== undefined) updateData.title = body.title;
+        if (body.description !== undefined) updateData.description = body.description;
+        if (body.keyword_tags !== undefined) updateData.keyword_tags = body.keyword_tags;
+        if (body.status !== undefined) updateData.status = body.status;
+
+        const updated = await updateNote(id, updateData);
 
         if (!updated) {
             return NextResponse.json({ error: "Note not found" }, { status: 404 });
